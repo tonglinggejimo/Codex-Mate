@@ -10,6 +10,32 @@ from pathlib import Path
 _VERSION_RE = re.compile(r"OpenAI\.Codex_([0-9.]+)_")
 
 
+def codex_app_dir_cache_path() -> Path:
+    return Path.home() / ".codex-mate" / "codex_app_dir.txt"
+
+
+def _valid_windows_codex_app_dir(path: Path) -> bool:
+    return path.is_dir() and any((path / name).is_file() for name in ("Codex.exe", "codex.exe"))
+
+
+def _read_cached_codex_app_dir() -> Path | None:
+    path = codex_app_dir_cache_path()
+    try:
+        cached = Path(path.read_text(encoding="utf-8").strip())
+    except OSError:
+        return None
+    return cached if _valid_windows_codex_app_dir(cached) else None
+
+
+def _write_cached_codex_app_dir(path: Path) -> None:
+    try:
+        cache_path = codex_app_dir_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(str(path), encoding="utf-8")
+    except OSError:
+        return
+
+
 def _version_tuple(path: Path) -> tuple[int, ...]:
     match = _VERSION_RE.search(path.name)
     if not match:
@@ -26,6 +52,10 @@ def find_latest_codex_app_dir(root: Path | None = None) -> Path | None:
         app = latest / "app"
         return app if app.is_dir() else latest
 
+    cached = _read_cached_codex_app_dir()
+    if cached is not None:
+        return cached
+
     cmd = 'Get-AppxPackage -Name "OpenAI.Codex" | Select-Object -ExpandProperty InstallLocation'
     try:
         r = subprocess.run(
@@ -36,12 +66,16 @@ def find_latest_codex_app_dir(root: Path | None = None) -> Path | None:
             errors="replace",
             timeout=8,
             check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         if r.returncode != 0 or not (p := r.stdout.strip()):
             return None
         root = Path(p)
         app = root / "app"
-        return app if app.is_dir() else root
+        resolved = app if app.is_dir() else root
+        if _valid_windows_codex_app_dir(resolved):
+            _write_cached_codex_app_dir(resolved)
+        return resolved
     except (OSError, subprocess.SubprocessError):
         return None
 

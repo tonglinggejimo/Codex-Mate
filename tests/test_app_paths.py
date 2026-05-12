@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from codex_mate import app_paths
 from codex_mate.app_paths import find_latest_codex_app_dir, find_macos_codex_app, resolve_codex_app_dir, user_data_candidates
 
 
@@ -10,6 +11,39 @@ def test_find_latest_codex_app_dir_uses_highest_version(tmp_path):
     newer.mkdir(parents=True)
 
     assert find_latest_codex_app_dir(tmp_path) == newer
+
+
+def test_find_latest_codex_app_dir_uses_valid_windows_cache_before_powershell(monkeypatch, tmp_path):
+    cached = tmp_path / "OpenAI.Codex_26.506.1.0_x64__abc" / "app"
+    cached.mkdir(parents=True)
+    (cached / "Codex.exe").write_text("", encoding="utf-8")
+    cache_file = tmp_path / ".codex-mate" / "codex_app_dir.txt"
+    cache_file.parent.mkdir()
+    cache_file.write_text(str(cached), encoding="utf-8")
+    monkeypatch.setattr(app_paths, "codex_app_dir_cache_path", lambda: cache_file)
+    monkeypatch.setattr(app_paths.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("PowerShell should not run")))
+
+    assert find_latest_codex_app_dir() == cached
+
+
+def test_find_latest_codex_app_dir_writes_windows_cache_after_powershell(monkeypatch, tmp_path):
+    discovered_root = tmp_path / "OpenAI.Codex_26.506.2.0_x64__abc"
+    discovered = discovered_root / "app"
+    discovered.mkdir(parents=True)
+    (discovered / "Codex.exe").write_text("", encoding="utf-8")
+    cache_file = tmp_path / ".codex-mate" / "codex_app_dir.txt"
+    monkeypatch.setattr(app_paths, "codex_app_dir_cache_path", lambda: cache_file)
+
+    class Result:
+        returncode = 0
+        stdout = str(discovered_root)
+
+    calls = []
+    monkeypatch.setattr(app_paths.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)) or Result())
+
+    assert find_latest_codex_app_dir() == discovered
+    assert cache_file.read_text(encoding="utf-8") == str(discovered)
+    assert calls[0][1]["creationflags"] == getattr(app_paths.subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def test_user_data_candidates_include_local_appdata(monkeypatch, tmp_path):

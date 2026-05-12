@@ -20,8 +20,8 @@ def _launcher_command(options: "InstallOptions") -> str:
     if options.launcher_command:
         return options.launcher_command
     if is_frozen():
-        return command_string("launch")
-    return "python -m codex_mate launch"
+        return command_string("launch", "--no-history-sync")
+    return "python -m codex_mate launch --no-history-sync"
 
 
 def _install_root_expr(options: "InstallOptions") -> str:
@@ -58,8 +58,11 @@ def _split_launcher_command(command: str) -> tuple[str, str]:
 
 def _uninstall_arguments(arguments: str) -> str:
     parts = arguments.split()
-    if parts and parts[-1] == "launch":
-        parts[-1] = "uninstall"
+    if "launch" in parts:
+        launch_index = parts.index("launch")
+        parts = parts[:launch_index] + ["uninstall"]
+    elif parts and parts[-1] == "uninstall":
+        pass
     elif not parts:
         parts = ["uninstall"]
     else:

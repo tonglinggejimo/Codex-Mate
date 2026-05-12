@@ -87,6 +87,7 @@ class SQLiteStorageAdapter:
         thread_rows = self._select_dicts(db, "SELECT * FROM threads WHERE id = ?", (thread_id,))
         if not thread_rows:
             return self._delete_codex_ghost_thread(thread_id, session.session_id)
+        cwd = str(thread_rows[0].get("cwd") or "") if "cwd" in thread_rows[0] else ""
 
         tables: dict[str, list[dict[str, Any]]] = {"threads": thread_rows}
         self._backup_related_rows(db, tables, "thread_dynamic_tools", "thread_id = ?", (thread_id,))
@@ -121,7 +122,7 @@ class SQLiteStorageAdapter:
             except OSError as exc:
                 file_delete_errors.append(f"{path}: {exc}")
 
-        sidecar_errors = self._remove_codex_thread_sidecar_refs(thread_id)
+        sidecar_errors = self._remove_codex_thread_sidecar_refs(thread_id, cwd)
         cleanup_errors = file_delete_errors + sidecar_errors
         if cleanup_errors:
             if file_delete_errors and not sidecar_errors:
@@ -152,7 +153,7 @@ class SQLiteStorageAdapter:
                 path.unlink(missing_ok=True)
             except OSError as exc:
                 file_delete_errors.append(f"{path}: {exc}")
-        sidecar_errors = self._remove_codex_thread_sidecar_refs(thread_id)
+        sidecar_errors = self._remove_codex_thread_sidecar_refs(thread_id, "")
         cleanup_errors = file_delete_errors + sidecar_errors
         if cleanup_errors:
             return DeleteResult(DeleteStatus.FAILED, thread_id, "本地数据库无此会话，但清理残留索引/文件失败：" + "; ".join(cleanup_errors), undo_token=token, backup_path=str(self.backup_store.path_for(token)))
@@ -236,11 +237,15 @@ class SQLiteStorageAdapter:
                 backups.append({"path": str(path), "content_b64": base64.b64encode(path.read_bytes()).decode("ascii")})
         return backups
 
-    def _remove_codex_thread_sidecar_refs(self, thread_id: str) -> list[str]:
+    def _remove_codex_thread_sidecar_refs(self, thread_id: str, cwd: str = "") -> list[str]:
         errors = []
-        for cleanup in (self._remove_thread_from_session_index, self._remove_thread_from_global_state):
+        cleanup_calls = (
+            lambda: self._remove_thread_from_session_index(thread_id),
+            lambda: self._remove_thread_from_global_state(thread_id, cwd),
+        )
+        for cleanup in cleanup_calls:
             try:
-                cleanup(thread_id)
+                cleanup()
             except OSError as exc:
                 errors.append(str(exc))
         return errors
@@ -285,7 +290,7 @@ class SQLiteStorageAdapter:
         if changed:
             self._atomic_write_text(path, "".join(kept_lines))
 
-    def _remove_thread_from_global_state(self, thread_id: str) -> None:
+    def _remove_thread_from_global_state(self, thread_id: str, cwd: str = "") -> None:
         path = self.db_path.parent / ".codex-global-state.json"
         if not path.exists():
             return
@@ -297,8 +302,59 @@ class SQLiteStorageAdapter:
             return
         variants = self._codex_thread_id_variants(thread_id)
         cleaned, changed = self._remove_thread_keys_and_list_values(state, variants)
+        if cwd and not self._workspace_root_still_used(cwd):
+            cleaned, workspace_changed = self._remove_workspace_root_values(cleaned, cwd)
+            changed = changed or workspace_changed
         if changed:
             self._atomic_write_text(path, json.dumps(cleaned, ensure_ascii=False, indent=2) + "\n")
+
+    def _workspace_root_still_used(self, cwd: str) -> bool:
+        if not cwd or not self._has_table_in_pathless_connection("threads"):
+            return False
+        try:
+            with sqlite3.connect(self.db_path) as db:
+                db.row_factory = sqlite3.Row
+                if not self._has_table(db, "threads") or not self._has_columns(db, "threads", {"cwd"}):
+                    return False
+                where = "cwd = ?"
+                if self._has_columns(db, "threads", {"archived"}):
+                    where += " AND archived = 0"
+                return db.execute(f"SELECT 1 FROM threads WHERE {where} LIMIT 1", (cwd,)).fetchone() is not None
+        except sqlite3.Error:
+            return False
+
+    def _has_table_in_pathless_connection(self, table: str) -> bool:
+        if not self.db_path.exists():
+            return False
+        try:
+            with sqlite3.connect(self.db_path) as db:
+                return self._has_table(db, table)
+        except sqlite3.Error:
+            return False
+
+    def _remove_workspace_root_values(self, value: Any, cwd: str) -> tuple[Any, bool]:
+        if isinstance(value, dict):
+            changed = False
+            cleaned: dict[str, Any] = {}
+            for key, item in value.items():
+                if key in {"project-order", "electron-saved-workspace-roots"} and isinstance(item, list):
+                    next_item = [entry for entry in item if not (isinstance(entry, str) and entry == cwd)]
+                    cleaned[key] = next_item
+                    changed = changed or len(next_item) != len(item)
+                    continue
+                next_item, item_changed = self._remove_workspace_root_values(item, cwd)
+                cleaned[key] = next_item
+                changed = changed or item_changed
+            return cleaned, changed
+        if isinstance(value, list):
+            changed = False
+            cleaned_list = []
+            for item in value:
+                next_item, item_changed = self._remove_workspace_root_values(item, cwd)
+                cleaned_list.append(next_item)
+                changed = changed or item_changed
+            return cleaned_list, changed
+        return value, False
 
     def _remove_thread_keys_and_list_values(self, value: Any, variants: set[str]) -> tuple[Any, bool]:
         if isinstance(value, dict):

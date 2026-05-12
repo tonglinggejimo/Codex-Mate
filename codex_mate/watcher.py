@@ -275,7 +275,7 @@ def wait_for_takeover_grace(port: int, observed_pids: list[int], grace_seconds: 
 
 
 def spawn_launcher() -> subprocess.Popen | None:
-    args = runtime.command_args("launch", prefer_pythonw=True)
+    args = runtime.command_args("launch", "--no-history-sync", prefer_pythonw=True)
     popen_kwargs = {
         "stdin": subprocess.DEVNULL,
         "stdout": subprocess.DEVNULL,

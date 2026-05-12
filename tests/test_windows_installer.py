@@ -11,13 +11,13 @@ LEGACY_PROJECT = "Codex" + "Plus" + "Plus"
 
 
 def test_build_install_shortcut_script_contains_codex_mate_shortcuts(tmp_path):
-    options = InstallOptions(install_root=tmp_path, launcher_command="python -m codex_mate launch")
+    options = InstallOptions(install_root=tmp_path)
 
     script = build_install_shortcut_script(options)
 
     assert "Codex Mate.lnk" in script
     assert "codex-mate.ico" in script
-    assert "-m codex_mate launch" in script
+    assert "-m codex_mate launch --no-history-sync" in script
     assert "CreateShortcut" in script
     assert "TargetPath = $Pythonw" in script
     assert "pythonw.exe" in script

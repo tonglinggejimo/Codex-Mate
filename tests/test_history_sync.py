@@ -127,10 +127,11 @@ def test_sync_history_rehomes_database_sessions_and_index(tmp_path):
     assert index_entries[0]["thread_name"] == "Old Thread"
 
 
-def test_sync_history_preserves_existing_index_entries_not_in_database(tmp_path):
+def test_sync_history_preserves_existing_index_entries_with_session_file(tmp_path):
     home = tmp_path / ".codex"
     write_config(home)
     create_threads_db(home)
+    write_session_file(home, "file-only", "current_provider", "gpt-current")
     (home / "session_index.jsonl").write_text(
         json.dumps({"id": "file-only", "thread_name": "File Only", "updated_at": "2026-01-01T00:00:00Z"}) + "\n",
         encoding="utf-8",
@@ -143,6 +144,24 @@ def test_sync_history_preserves_existing_index_entries_not_in_database(tmp_path)
     assert result["preserved_index_entries"] == 1
     index_entries = [json.loads(line) for line in (home / "session_index.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [entry["id"] for entry in index_entries] == ["old-thread", "already-current", "file-only"]
+
+
+def test_sync_history_prunes_orphan_index_entries_without_database_or_session_file(tmp_path):
+    home = tmp_path / ".codex"
+    write_config(home)
+    create_threads_db(home)
+    (home / "session_index.jsonl").write_text(
+        json.dumps({"id": "orphan", "thread_name": "Orphan", "updated_at": "2026-01-01T00:00:00Z"}) + "\n",
+        encoding="utf-8",
+    )
+    paths = history_sync.resolve_paths(home)
+
+    result = history_sync.sync_history_to_current_profile(paths)
+
+    assert result["rewritten_index_entries"] == 2
+    assert result["preserved_index_entries"] == 0
+    index_entries = [json.loads(line) for line in (home / "session_index.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [entry["id"] for entry in index_entries] == ["old-thread", "already-current"]
 
 
 def test_sync_history_does_not_clear_index_when_threads_table_is_missing(tmp_path):
@@ -217,8 +236,8 @@ def test_sync_history_repairs_desktop_global_state_sidebar_indexes(tmp_path):
 
     assert result["updated_global_state"] is True
     assert result["global_state_thread_hints_added"] == 3
-    assert result["global_state_project_roots_added"] == 2
-    assert result["global_state_saved_roots_added"] == 2
+    assert result["global_state_project_roots_added"] == 0
+    assert result["global_state_saved_roots_added"] == 0
     assert result["global_state_projectless_threads_added"] == 1
     assert result["global_state_projectless_threads_removed"] == 1
     assert Path(result["backup_path"] + ".codex-global-state.json").exists()
@@ -227,10 +246,8 @@ def test_sync_history_repairs_desktop_global_state_sidebar_indexes(tmp_path):
     assert state["thread-workspace-root-hints"]["project-thread"] == "/work/project"
     assert state["thread-workspace-root-hints"]["project-thread-2"] == "/work/project"
     assert state["thread-workspace-root-hints"]["project-thread-other"] == "/work/other"
-    assert "/work/project" in state["project-order"]
-    assert "/work/other" in state["project-order"]
-    assert "/work/project" in state["electron-saved-workspace-roots"]
-    assert "/work/other" in state["electron-saved-workspace-roots"]
+    assert state["project-order"] == ["/existing"]
+    assert state["electron-saved-workspace-roots"] == ["/existing"]
     assert "project-thread" not in state["projectless-thread-ids"]
     assert "project-thread-2" not in state["projectless-thread-ids"]
     assert "project-thread-other" not in state["projectless-thread-ids"]

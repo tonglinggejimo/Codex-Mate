@@ -114,6 +114,50 @@ def test_delete_codex_thread_schema_removes_codex_sidecar_indexes(tmp_path):
     assert "keep" in global_state
 
 
+def test_delete_codex_thread_schema_removes_unused_workspace_roots(tmp_path):
+    db_path = tmp_path / "state_5.sqlite"
+    rollout_path = tmp_path / "rollout.jsonl"
+    rollout_path.write_text('{"type":"message"}\n', encoding="utf-8")
+    create_codex_thread_db(db_path, rollout_path)
+    with sqlite3.connect(db_path) as db:
+        db.execute("ALTER TABLE threads ADD COLUMN cwd TEXT")
+        db.execute("UPDATE threads SET cwd = '/tmp/project' WHERE id = 't1'")
+    (tmp_path / ".codex-global-state.json").write_text(
+        '{"project-order":["/tmp/project","/keep"],"electron-saved-workspace-roots":["/tmp/project","/keep"]}\n',
+        encoding="utf-8",
+    )
+    adapter = SQLiteStorageAdapter(db_path, BackupStore(tmp_path / "backups"))
+
+    result = adapter.delete_local(SessionRef(session_id="t1", title="Codex Thread"))
+
+    assert result.status == DeleteStatus.LOCAL_DELETED
+    state = (tmp_path / ".codex-global-state.json").read_text(encoding="utf-8")
+    assert "/tmp/project" not in state
+    assert "/keep" in state
+
+
+def test_delete_codex_thread_schema_keeps_workspace_root_used_by_other_thread(tmp_path):
+    db_path = tmp_path / "state_5.sqlite"
+    rollout_path = tmp_path / "rollout.jsonl"
+    rollout_path.write_text('{"type":"message"}\n', encoding="utf-8")
+    create_codex_thread_db(db_path, rollout_path)
+    with sqlite3.connect(db_path) as db:
+        db.execute("ALTER TABLE threads ADD COLUMN cwd TEXT")
+        db.execute("UPDATE threads SET cwd = '/tmp/project' WHERE id = 't1'")
+        db.execute("INSERT INTO threads (id, rollout_path, title, archived, archived_at, cwd) VALUES ('t2', '', 'Other', 0, NULL, '/tmp/project')")
+    (tmp_path / ".codex-global-state.json").write_text(
+        '{"project-order":["/tmp/project"],"electron-saved-workspace-roots":["/tmp/project"]}\n',
+        encoding="utf-8",
+    )
+    adapter = SQLiteStorageAdapter(db_path, BackupStore(tmp_path / "backups"))
+
+    result = adapter.delete_local(SessionRef(session_id="t1", title="Codex Thread"))
+
+    assert result.status == DeleteStatus.LOCAL_DELETED
+    state = (tmp_path / ".codex-global-state.json").read_text(encoding="utf-8")
+    assert "/tmp/project" in state
+
+
 def test_delete_codex_thread_schema_finds_rollout_file_by_session_meta_id(tmp_path):
     db_path = tmp_path / "state_5.sqlite"
     stale_rollout_path = tmp_path / "missing-rollout.jsonl"

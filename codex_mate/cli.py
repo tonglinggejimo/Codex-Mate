@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -169,11 +170,36 @@ def stop_existing_windows_launchers() -> None:
         "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
     )
     env = {**os.environ, "CODEX_MATE_PID": str(current_pid)}
-    subprocess.run(["powershell", "-NoProfile", "-Command", script], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+    subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+def helper_port_available(port: int) -> bool:
+    if port == 0:
+        return True
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            if sys.platform == "win32" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            probe.bind(("127.0.0.1", port))
+            return True
+    except OSError:
+        return False
+
+
+def stop_existing_windows_launchers_if_needed(helper_port: int) -> None:
+    if sys.platform == "win32" and not helper_port_available(helper_port):
+        stop_existing_windows_launchers()
 
 
 def run_launch(args: argparse.Namespace) -> int:
-    stop_existing_windows_launchers()
+    stop_existing_windows_launchers_if_needed(args.helper_port)
     if not args.no_history_sync:
         sync_history_before_launch(args)
     maybe_print_update_notice()

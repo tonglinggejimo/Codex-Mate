@@ -279,6 +279,26 @@ def test_windows_port_selector_uses_ephemeral_port_when_default_is_busy(monkeypa
     assert launcher.select_windows_loopback_port(9229) == 43001
 
 
+def test_devtools_json_ready_skips_http_probe_when_port_is_closed(monkeypatch):
+    monkeypatch.setattr(launcher, "cdp_port_ready", lambda port: False)
+    monkeypatch.setattr(
+        launcher,
+        "list_targets",
+        lambda port: (_ for _ in ()).throw(AssertionError("should not request /json/version")),
+    )
+
+    assert launcher.devtools_json_ready(9229) is False
+
+
+def test_devtools_json_ready_checks_targets_after_socket_probe(monkeypatch):
+    calls = []
+    monkeypatch.setattr(launcher, "cdp_port_ready", lambda port: True)
+    monkeypatch.setattr(launcher, "list_targets", lambda port: calls.append(port) or [{"id": "page"}])
+
+    assert launcher.devtools_json_ready(9229) is True
+    assert calls == [9229]
+
+
 def test_windows_port_selector_keeps_busy_port_when_devtools_is_ready(monkeypatch):
     monkeypatch.setattr(launcher.sys, "platform", "win32")
     monkeypatch.setattr(launcher, "_can_bind_loopback_port", lambda port: False)
@@ -476,14 +496,15 @@ def test_cli_stops_existing_windows_launchers_before_launch(monkeypatch):
 
     assert len(commands) == 1
     command, kwargs = commands[0]
-    assert command[:3] == ["powershell", "-NoProfile", "-Command"]
-    assert "codex_mate" in command[3]
-    assert "_".join(("codex", "session", "delete")) in command[3]
-    assert "CodexMate" in command[3]
-    assert "pythonw?" in command[3]
-    assert "Stop-Process" in command[3]
+    assert command[:4] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]
+    assert "codex_mate" in command[4]
+    assert "_".join(("codex", "session", "delete")) in command[4]
+    assert "CodexMate" in command[4]
+    assert "pythonw?" in command[4]
+    assert "Stop-Process" in command[4]
     assert kwargs["env"]["CODEX_MATE_PID"] == "9876"
     assert kwargs["check"] is False
+    assert kwargs["creationflags"] == getattr(cli.subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def test_cli_skips_launcher_cleanup_on_non_windows(monkeypatch):
@@ -496,9 +517,31 @@ def test_cli_skips_launcher_cleanup_on_non_windows(monkeypatch):
     assert commands == []
 
 
+def test_cli_runs_launcher_cleanup_only_when_helper_port_is_busy(monkeypatch):
+    events = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr(cli, "helper_port_available", lambda port: False)
+    monkeypatch.setattr(cli, "stop_existing_windows_launchers", lambda: events.append("cleanup"))
+
+    cli.stop_existing_windows_launchers_if_needed(57321)
+
+    assert events == ["cleanup"]
+
+
+def test_cli_skips_launcher_cleanup_when_helper_port_is_free(monkeypatch):
+    events = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr(cli, "helper_port_available", lambda port: True)
+    monkeypatch.setattr(cli, "stop_existing_windows_launchers", lambda: events.append("cleanup"))
+
+    cli.stop_existing_windows_launchers_if_needed(57321)
+
+    assert events == []
+
+
 def test_cli_launch_runs_launcher_cleanup_before_injection(monkeypatch):
     events = []
-    monkeypatch.setattr(cli, "stop_existing_windows_launchers", lambda: events.append("cleanup"))
+    monkeypatch.setattr(cli, "stop_existing_windows_launchers_if_needed", lambda port: events.append(("cleanup", port)))
     monkeypatch.setattr(cli, "sync_history_before_launch", lambda args: events.append("history-sync"))
     monkeypatch.setattr(cli, "launch_and_inject", lambda *args: events.append("launch") or (FakeServer(), None))
     monkeypatch.setattr(cli, "wait_for_shutdown", lambda server, proc: events.append("wait"))
@@ -506,12 +549,12 @@ def test_cli_launch_runs_launcher_cleanup_before_injection(monkeypatch):
     exit_code = cli.main(["launch"])
 
     assert exit_code == 0
-    assert events == ["cleanup", "history-sync", "launch", "wait"]
+    assert events == [("cleanup", 57321), "history-sync", "launch", "wait"]
 
 
 def test_cli_launch_can_skip_history_sync(monkeypatch):
     events = []
-    monkeypatch.setattr(cli, "stop_existing_windows_launchers", lambda: events.append("cleanup"))
+    monkeypatch.setattr(cli, "stop_existing_windows_launchers_if_needed", lambda port: events.append(("cleanup", port)))
     monkeypatch.setattr(cli, "sync_history_before_launch", lambda args: events.append("history-sync"))
     monkeypatch.setattr(cli, "launch_and_inject", lambda *args: events.append("launch") or (FakeServer(), None))
     monkeypatch.setattr(cli, "wait_for_shutdown", lambda server, proc: events.append("wait"))
@@ -519,12 +562,12 @@ def test_cli_launch_can_skip_history_sync(monkeypatch):
     exit_code = cli.main(["launch", "--no-history-sync"])
 
     assert exit_code == 0
-    assert events == ["cleanup", "launch", "wait"]
+    assert events == [("cleanup", 57321), "launch", "wait"]
 
 
 def test_cli_launch_checks_update_before_injection(monkeypatch):
     events = []
-    monkeypatch.setattr(cli, "stop_existing_windows_launchers", lambda: events.append("cleanup"))
+    monkeypatch.setattr(cli, "stop_existing_windows_launchers_if_needed", lambda port: events.append(("cleanup", port)))
     monkeypatch.setattr(cli, "sync_history_before_launch", lambda args: events.append("history-sync"))
     monkeypatch.setattr(cli, "maybe_print_update_notice", lambda: events.append("check-update"))
     monkeypatch.setattr(cli, "launch_and_inject", lambda *args: events.append("launch") or (FakeServer(), None))
@@ -533,7 +576,7 @@ def test_cli_launch_checks_update_before_injection(monkeypatch):
     exit_code = cli.main(["launch"])
 
     assert exit_code == 0
-    assert events == ["cleanup", "history-sync", "check-update", "launch", "wait"]
+    assert events == [("cleanup", 57321), "history-sync", "check-update", "launch", "wait"]
 
 
 def test_cli_update_notice_ignores_network_errors(monkeypatch, capsys):

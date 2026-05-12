@@ -247,6 +247,25 @@ def read_session_index_entries(paths: HistoryPaths) -> list[dict[str, object]]:
     return entries
 
 
+def session_file_thread_ids(paths: HistoryPaths) -> set[str]:
+    ids: set[str] = set()
+    for path in iter_session_files(paths):
+        try:
+            first_line, _, _ = split_first_line(path.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        if not first_line:
+            continue
+        try:
+            item = json.loads(first_line)
+        except json.JSONDecodeError:
+            continue
+        payload = item.get("payload")
+        if item.get("type") == "session_meta" and isinstance(payload, dict) and payload.get("id"):
+            ids.add(str(payload["id"]))
+    return ids
+
+
 def active_thread_index_entries(paths: HistoryPaths) -> list[dict[str, object]]:
     with connect_db(paths.db_path, readonly=True) as conn:
         if not table_exists(conn, "threads"):
@@ -312,6 +331,7 @@ def merge_session_index(paths: HistoryPaths) -> dict[str, int]:
     db_entries = active_thread_index_entries(paths)
     existing_entries = read_session_index_entries(paths)
     existing_by_id = {str(entry["id"]): entry for entry in existing_entries}
+    file_thread_ids = session_file_thread_ids(paths)
 
     merged: list[dict[str, object]] = []
     seen: set[str] = set()
@@ -322,7 +342,7 @@ def merge_session_index(paths: HistoryPaths) -> dict[str, int]:
         seen.add(entry_id)
     for entry in existing_entries:
         entry_id = str(entry["id"])
-        if entry_id not in seen:
+        if entry_id not in seen and entry_id in file_thread_ids:
             merged.append(entry)
             seen.add(entry_id)
 
@@ -403,8 +423,6 @@ def sync_global_state(paths: HistoryPaths) -> dict[str, object]:
     hint_changes = 0
     projectless_candidates: list[str] = []
     project_thread_ids: set[str] = set()
-    workspace_roots: list[str] = []
-    seen_roots: set[str] = set()
     for entry in entries:
         thread_id = str(entry["id"])
         cwd = str(entry.get("cwd") or "")
@@ -413,14 +431,11 @@ def sync_global_state(paths: HistoryPaths) -> dict[str, object]:
             if hints.get(thread_id) != cwd:
                 hints[thread_id] = cwd
                 hint_changes += 1
-            if cwd not in seen_roots:
-                workspace_roots.append(cwd)
-                seen_roots.add(cwd)
         else:
             projectless_candidates.append(thread_id)
 
-    project_order, project_order_changes = append_missing(project_order, workspace_roots)
-    saved_roots, saved_root_changes = append_missing(saved_roots, workspace_roots)
+    project_order_changes = 0
+    saved_root_changes = 0
     projectless_thread_ids, projectless_removed = remove_strings(projectless_thread_ids, project_thread_ids)
     projectless_thread_ids, projectless_changes = append_missing(projectless_thread_ids, projectless_candidates)
 

@@ -153,6 +153,8 @@ def _find_available_loopback_port() -> int:
 
 
 def devtools_json_ready(port: int) -> bool:
+    if not cdp_port_ready(port):
+        return False
     try:
         list_targets(port)
         return True
