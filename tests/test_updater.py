@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+import requests
 
 from codex_mate import updater
 
@@ -80,6 +81,20 @@ def test_fetch_latest_release_uses_github_api(monkeypatch):
     assert "Codex Mate" in requested[0][1]["headers"]["User-Agent"]
 
 
+def test_fetch_latest_release_reports_rate_limit(monkeypatch):
+    class Response:
+        status_code = 403
+        text = "API rate limit exceeded"
+
+        def raise_for_status(self):
+            raise requests.HTTPError("403 Client Error", response=self)
+
+    monkeypatch.setattr(updater.requests, "get", lambda *args, **kwargs: Response())
+
+    with pytest.raises(updater.UpdateError, match="GitHub 更新检查暂时被限流"):
+        updater.fetch_latest_release()
+
+
 def test_download_asset_writes_release_file(monkeypatch, tmp_path):
     class Response:
         headers = {"content-length": "7"}
@@ -111,6 +126,7 @@ def test_perform_update_installs_downloaded_wheel_and_reruns_setup(monkeypatch, 
     wheel = tmp_path / "pkg.whl"
     wheel.write_bytes(b"wheel")
     monkeypatch.setattr(updater, "download_asset", lambda *args: wheel)
+    monkeypatch.setattr(updater.autostart, "windows_watcher_autostart_installed", lambda: False)
     monkeypatch.setattr(updater.subprocess, "run", lambda command, **kwargs: commands.append((command, kwargs)))
 
     result = updater.perform_update(release, python_executable="python.exe", download_dir=tmp_path)
@@ -120,6 +136,26 @@ def test_perform_update_installs_downloaded_wheel_and_reruns_setup(monkeypatch, 
         (["python.exe", "-m", "pip", "install", "--upgrade", str(wheel)], {"check": True}),
         (["python.exe", "-m", "codex_mate", "setup"], {"check": True, "cwd": updater.safe_setup_cwd()}),
     ]
+
+
+def test_perform_update_restores_windows_watcher_when_it_was_enabled(monkeypatch, tmp_path):
+    commands = []
+    release = updater.Release(
+        version="v1.1.1",
+        url="https://github.com/serein431/Codex-Mate/releases/tag/v1.1.1",
+        body="fixes",
+        asset_name="pkg.whl",
+        asset_url="https://example.test/pkg.whl",
+    )
+    wheel = tmp_path / "pkg.whl"
+    wheel.write_bytes(b"wheel")
+    monkeypatch.setattr(updater, "download_asset", lambda *args: wheel)
+    monkeypatch.setattr(updater.autostart, "windows_watcher_autostart_installed", lambda: True)
+    monkeypatch.setattr(updater.subprocess, "run", lambda command, **kwargs: commands.append((command, kwargs)))
+
+    updater.perform_update(release, python_executable="python.exe", download_dir=tmp_path)
+
+    assert commands[-1] == (["python.exe", "-m", "codex_mate", "watch-install"], {"check": True, "cwd": updater.safe_setup_cwd()})
 
 
 def test_perform_update_rejects_release_without_asset(tmp_path):

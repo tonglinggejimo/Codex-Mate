@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from codex_mate import autostart
+from codex_mate import watcher
 from codex_mate.macos_installer import install_macos_app, uninstall_macos_app
 from codex_mate.windows_installer import install_windows_shortcuts, uninstall_windows_shortcuts
 
@@ -24,7 +25,8 @@ def install_codex_mate(options: InstallOptions) -> None:
         return
     if sys.platform == "win32":
         install_windows_shortcuts(options)
-        autostart.install_watcher_autostart(debug_port=9229)
+        autostart.uninstall_watcher_autostart()
+        watcher.disable_watcher()
         return
     raise RuntimeError(f"Unsupported platform for Codex Mate install: {sys.platform}")
 

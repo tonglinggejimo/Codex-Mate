@@ -154,6 +154,27 @@ def test_bridge_routes_update_requests(tmp_path):
     assert launcher.handle_bridge_request(Service(), "/update", {}) == {"status": "updated"}
 
 
+def test_bridge_routes_file_tree_requests(tmp_path):
+    class Service:
+        def file_tree_roots(self):
+            return {"status": "ok", "roots": [{"id": "r1"}]}
+
+        def file_tree_list(self, root_id, path):
+            return {"status": "ok", "root_id": root_id, "path": path}
+
+        def file_tree_read(self, root_id, path):
+            return {"status": "ok", "root_id": root_id, "path": path, "content": "hello"}
+
+    assert launcher.handle_bridge_request(Service(), "/file-tree/roots", {}) == {"status": "ok", "roots": [{"id": "r1"}]}
+    assert launcher.handle_bridge_request(Service(), "/file-tree/list", {"root_id": "r1", "path": "src"}) == {"status": "ok", "root_id": "r1", "path": "src"}
+    assert launcher.handle_bridge_request(Service(), "/file-tree/read", {"root_id": "r1", "path": "src/app.py"}) == {
+        "status": "ok",
+        "root_id": "r1",
+        "path": "src/app.py",
+        "content": "hello",
+    }
+
+
 def test_launch_codex_windows_allows_devtools_websocket_origin(monkeypatch):
     app_dir = Path("C:/Codex/app")
     popen_calls = []
@@ -597,6 +618,39 @@ def test_cli_setup_alias_installs_with_default_launcher(monkeypatch):
     assert len(calls) == 1
     assert calls[0].install_root is None
     assert calls[0].launcher_command is None
+
+
+def test_cli_watch_install_enables_watcher_before_autostart(monkeypatch):
+    events = []
+    monkeypatch.setattr(cli.watcher, "enable_watcher", lambda: events.append("enable"))
+    monkeypatch.setattr(cli.autostart, "install_watcher_autostart", lambda debug_port: events.append(("install", debug_port)))
+
+    exit_code = cli.main(["watch-install", "--debug-port", "9555"])
+
+    assert exit_code == 0
+    assert events == ["enable", ("install", 9555)]
+
+
+def test_cli_watch_remove_disables_watcher_after_autostart_removal(monkeypatch):
+    events = []
+    monkeypatch.setattr(cli.autostart, "uninstall_watcher_autostart", lambda: events.append("remove"))
+    monkeypatch.setattr(cli.watcher, "disable_watcher", lambda: events.append("disable"))
+
+    exit_code = cli.main(["watch-remove"])
+
+    assert exit_code == 0
+    assert events == ["remove", "disable"]
+
+
+def test_cli_doctor_prints_json(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli.doctor, "collect_status", lambda: {"version": "1.2.3", "watcher": {"enabled": False}})
+
+    exit_code = cli.main(["doctor", "--json"])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert '"version": "1.2.3"' in output
+    assert '"enabled": false' in output
 
 
 def test_cli_check_update_prints_latest_release(monkeypatch, capsys):

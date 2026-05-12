@@ -11,6 +11,7 @@ from typing import Any
 import requests
 
 from codex_mate import __version__
+from codex_mate import autostart
 
 DEFAULT_REPOSITORY = "serein431/Codex-Mate"
 DEFAULT_RELEASE_API_URL = f"https://api.github.com/repos/{DEFAULT_REPOSITORY}/releases/latest"
@@ -83,7 +84,14 @@ def select_update_asset(assets: list[dict[str, Any]]) -> dict[str, str] | None:
 
 def fetch_latest_release(api_url: str = DEFAULT_RELEASE_API_URL, timeout: int = 10) -> Release:
     response = requests.get(api_url, timeout=timeout, headers={"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"})
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        status_code = getattr(getattr(exc, "response", None), "status_code", None) or getattr(response, "status_code", None)
+        text = str(getattr(response, "text", ""))
+        if status_code == 403 and "rate limit" in text.lower():
+            raise UpdateError("GitHub 更新检查暂时被限流，不影响当前版本使用。稍后再检查即可。") from exc
+        raise
     return Release.from_github_payload(response.json())
 
 
@@ -151,9 +159,12 @@ def perform_update(
 
 
 def _perform_update_in_dir(release: Release, python_executable: str, download_dir: Path) -> UpdateResult:
+    restore_windows_watcher = autostart.windows_watcher_autostart_installed()
     package_path = download_asset(release.asset_url or "", release.asset_name or "", download_dir)
     subprocess.run([python_executable, "-m", "pip", "install", "--upgrade", str(package_path)], check=True)
     subprocess.run([python_executable, "-m", "codex_mate", "setup"], check=True, cwd=safe_setup_cwd())
+    if restore_windows_watcher:
+        subprocess.run([python_executable, "-m", "codex_mate", "watch-install"], check=True, cwd=safe_setup_cwd())
     return UpdateResult(release=release, installed_path=package_path)
 
 

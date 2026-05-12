@@ -86,6 +86,13 @@ def test_build_windows_watcher_uninstall_script_removes_lock_pid_watchers():
     assert "Remove-Item $_.FullName" in script
 
 
+def test_windows_watcher_autostart_installed_uses_run_key_or_startup_shortcut(monkeypatch):
+    monkeypatch.setattr(autostart.sys, "platform", "win32")
+    monkeypatch.setattr(autostart, "_run_hidden_powershell", lambda script: "1\n")
+
+    assert autostart.windows_watcher_autostart_installed() is True
+
+
 def test_macos_watch_install_stops_legacy_watcher(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(autostart, "write_macos_launch_agent", lambda debug_port: tmp_path / "dev.codexmate.watcher.plist")

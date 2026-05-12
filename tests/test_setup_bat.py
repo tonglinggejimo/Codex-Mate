@@ -9,6 +9,9 @@ def test_setup_bat_offers_install_and_uninstall_choices():
     assert "[2]" in text and "uninstall" in text.lower()
     assert "[3]" in text and "update" in text.lower()
     assert "[4]" in text and "logs" in text.lower()
+    assert "Enable transparent watcher" in text
+    assert "Disable transparent watcher" in text
+    assert "Doctor" in text
     assert "CodexMate.exe" in text
     assert "CodexMate-windows.zip" in text
     assert "python -m pip install -e ." in text
@@ -17,6 +20,9 @@ def test_setup_bat_offers_install_and_uninstall_choices():
     assert "%CODEX_MATE_PY% remove" in text
     assert "%CODEX_MATE_PY% update" in text
     assert "%CODEX_MATE_PY% logs" in text
+    assert "watch-install" in text
+    assert "watch-disable" in text
+    assert "%CODEX_MATE_PY% doctor" in text
     assert "pause" in text.lower()
 
 
@@ -25,6 +31,7 @@ def test_setup_bat_binary_update_downloads_and_applies_windows_package():
 
     assert "Bundled executable installs are updated by downloading" not in text
     assert "watch-remove" in text
+    assert "$WatcherWasEnabled" in text
     assert "watcher-*.lock" in text
     assert "Stop-Process -Id ([int]$LockPidText)" in text
     assert "Invoke-RestMethod" in text
@@ -33,3 +40,4 @@ def test_setup_bat_binary_update_downloads_and_applies_windows_package():
     assert "Expand-Archive" in text
     assert "Copy-Item" in text
     assert "CodexMate.exe') setup" in text
+    assert "CodexMate.exe') watch-install" in text

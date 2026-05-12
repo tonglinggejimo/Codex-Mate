@@ -280,6 +280,22 @@ def test_renderer_script_uses_chinese_delete_toast_fallbacks():
     assert "Undo finished" not in text
 
 
+def test_renderer_script_includes_project_file_tree_panel():
+    text = Path("codex_mate/inject/renderer-inject.js").read_text(encoding="utf-8")
+
+    assert "projectFileTree: true" in text
+    assert "项目文件树" in text
+    assert "codex-file-tree-panel" in text
+    assert "data-codex-file-tree-root-select" in text
+    assert "data-codex-file-tree-preview" in text
+    assert "data-codex-file-tree-copy-path" in text
+    assert "data-codex-file-tree-insert-path" in text
+    assert "/file-tree/roots" in text
+    assert "/file-tree/list" in text
+    assert "/file-tree/read" in text
+    assert "@${codexFileTreeState.selectedPath}" in text
+
+
 def test_renderer_script_does_not_include_fast_mode_patch():
     text = Path("codex_mate/inject/renderer-inject.js").read_text(encoding="utf-8")
     assert "codexFastModeUnlockVersion" not in text

@@ -44,6 +44,8 @@ def test_readme_describes_transparent_takeover_mode():
     assert "LaunchAgent" in text
     assert "Windows 登录自启" in text
     assert "python -m codex_mate watch-disable" in text
+    assert "Windows 默认不启用 watcher" in text
+    assert "python -m codex_mate doctor --json" in text
     assert LEGACY_BRAND not in main_text
     assert LEGACY_OWNER not in main_text
     assert LEGACY_PROJECT not in main_text
@@ -98,6 +100,15 @@ def test_readme_describes_in_app_update_controls():
     assert "Codex Mate` 面板" in text
     assert "setup.bat` 选择 `[3] Update Codex Mate`" in text
     assert "CodexMate-windows.zip" in text
+
+
+def test_readme_describes_project_file_tree():
+    text = Path("README.md").read_text(encoding="utf-8")
+
+    assert "项目文件树" in text
+    assert "只读" in text
+    assert "256KB" in text
+    assert "Codex 已知项目目录" in text
 
 
 def test_readme_thanks_related_projects_at_end():

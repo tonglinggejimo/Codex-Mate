@@ -14,15 +14,21 @@ echo [1] Install Codex Mate
 echo [2] Uninstall Codex Mate
 echo [3] Update Codex Mate
 echo [4] Export diagnostic logs
-echo [5] Exit
+echo [5] Enable transparent watcher
+echo [6] Disable transparent watcher
+echo [7] Doctor
+echo [8] Exit
 echo.
-set /p choice=Please select an option [1-5]:
+set /p choice=Please select an option [1-8]:
 
 if "%choice%"=="1" goto install
 if "%choice%"=="2" goto uninstall
 if "%choice%"=="3" goto update
 if "%choice%"=="4" goto logs
-if "%choice%"=="5" goto end
+if "%choice%"=="5" goto enable_watcher
+if "%choice%"=="6" goto disable_watcher
+if "%choice%"=="7" goto doctor
+if "%choice%"=="8" goto end
 
 echo.
 echo Invalid choice.
@@ -38,7 +44,7 @@ echo Installing Python package...
 python -m pip install -e .
 if errorlevel 1 goto error
 echo.
-echo Installing Codex Mate shortcut, uninstall entry, and transparent watcher...
+echo Installing Codex Mate stable launcher and uninstall entry...
 %CODEX_MATE_PY% setup
 if errorlevel 1 goto error
 goto install_done
@@ -46,20 +52,20 @@ goto install_done
 :install_binary
 echo Using bundled CodexMate.exe.
 echo.
-echo Installing Codex Mate shortcut, uninstall entry, and transparent watcher...
+echo Installing Codex Mate stable launcher and uninstall entry...
 "%CODEX_MATE_EXE%" setup
 if errorlevel 1 goto error
 
 :install_done
 echo.
 echo Codex Mate installed successfully.
-echo You can keep launching Codex from your normal entry point; Codex Mate will take over automatically.
+echo Use the Codex Mate shortcut for the most stable direct-launch path.
 pause
 goto end
 
 :uninstall
 echo.
-echo Uninstalling Codex Mate shortcut, uninstall entry, and transparent watcher...
+echo Uninstalling Codex Mate shortcut, uninstall entry, and watcher registration...
 if exist "%CODEX_MATE_EXE%" (
     "%CODEX_MATE_EXE%" remove
 ) else (
@@ -79,7 +85,7 @@ if exist "%CODEX_MATE_EXE%" (
     echo Stopping transparent watcher before replacing files...
     "%CODEX_MATE_EXE%" watch-remove >nul 2>nul
     echo Downloading and applying latest CodexMate-windows.zip...
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $Root=(Resolve-Path '.').Path; $Headers=@{'User-Agent'='Codex Mate setup.bat'}; $DataRoot=Join-Path $env:USERPROFILE '.codex-mate'; Get-ChildItem -Path $DataRoot -Filter 'watcher-*.lock' -ErrorAction SilentlyContinue | ForEach-Object { try { $LockPidText=(Get-Content -Path $_.FullName -Raw -ErrorAction Stop).Trim(); if ($LockPidText -match '^\d+$' -and [int]$LockPidText -ne $PID) { Stop-Process -Id ([int]$LockPidText) -Force -ErrorAction SilentlyContinue } } catch {}; Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }; $Release=Invoke-RestMethod -Uri 'https://api.github.com/repos/serein431/Codex-Mate/releases/latest' -Headers $Headers; $Asset=$Release.assets | Where-Object { $_.name -eq 'CodexMate-windows.zip' } | Select-Object -First 1; if (-not $Asset) { throw 'CodexMate-windows.zip not found in latest release.' }; $Temp=Join-Path $env:TEMP ('CodexMateUpdate-' + [guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $Temp | Out-Null; $Zip=Join-Path $Temp 'CodexMate-windows.zip'; Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $Zip -Headers $Headers; Expand-Archive -Path $Zip -DestinationPath $Temp -Force; $Package=Join-Path $Temp 'CodexMate'; if (-not (Test-Path (Join-Path $Package 'CodexMate.exe'))) { throw 'Downloaded package is missing CodexMate.exe.' }; Copy-Item -Path (Join-Path $Package 'CodexMate.exe') -Destination $Root -Force; if (Test-Path (Join-Path $Package 'README.md')) { Copy-Item -Path (Join-Path $Package 'README.md') -Destination $Root -Force }; & (Join-Path $Root 'CodexMate.exe') setup; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $Root=(Resolve-Path '.').Path; $Headers=@{'User-Agent'='Codex Mate setup.bat'}; $DataRoot=Join-Path $env:USERPROFILE '.codex-mate'; $Startup=[Environment]::GetFolderPath('Startup'); $RunValue=(Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'CodexMateWatcher' -ErrorAction SilentlyContinue).CodexMateWatcher; $WatcherWasEnabled=([bool]$RunValue) -or (Test-Path (Join-Path $Startup 'CodexMateWatcher.lnk')); Get-ChildItem -Path $DataRoot -Filter 'watcher-*.lock' -ErrorAction SilentlyContinue | ForEach-Object { try { $LockPidText=(Get-Content -Path $_.FullName -Raw -ErrorAction Stop).Trim(); if ($LockPidText -match '^\d+$' -and [int]$LockPidText -ne $PID) { Stop-Process -Id ([int]$LockPidText) -Force -ErrorAction SilentlyContinue } } catch {}; Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }; $Release=Invoke-RestMethod -Uri 'https://api.github.com/repos/serein431/Codex-Mate/releases/latest' -Headers $Headers; $Asset=$Release.assets | Where-Object { $_.name -eq 'CodexMate-windows.zip' } | Select-Object -First 1; if (-not $Asset) { throw 'CodexMate-windows.zip not found in latest release.' }; $Temp=Join-Path $env:TEMP ('CodexMateUpdate-' + [guid]::NewGuid().ToString('N')); New-Item -ItemType Directory -Force -Path $Temp | Out-Null; $Zip=Join-Path $Temp 'CodexMate-windows.zip'; Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $Zip -Headers $Headers; Expand-Archive -Path $Zip -DestinationPath $Temp -Force; $Package=Join-Path $Temp 'CodexMate'; if (-not (Test-Path (Join-Path $Package 'CodexMate.exe'))) { throw 'Downloaded package is missing CodexMate.exe.' }; Copy-Item -Path (Join-Path $Package 'CodexMate.exe') -Destination $Root -Force; if (Test-Path (Join-Path $Package 'README.md')) { Copy-Item -Path (Join-Path $Package 'README.md') -Destination $Root -Force }; & (Join-Path $Root 'CodexMate.exe') setup; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if ($WatcherWasEnabled) { & (Join-Path $Root 'CodexMate.exe') watch-install; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; Remove-Item $Temp -Recurse -Force -ErrorAction SilentlyContinue"
 ) else (
     %CODEX_MATE_PY% update
 )
@@ -100,6 +106,48 @@ if exist "%CODEX_MATE_EXE%" (
 if errorlevel 1 goto error
 echo.
 echo Please send the generated CodexMate-diagnostics zip file to the maintainer.
+pause
+goto end
+
+:enable_watcher
+echo.
+echo Enabling transparent watcher...
+if exist "%CODEX_MATE_EXE%" (
+    "%CODEX_MATE_EXE%" watch-install
+) else (
+    %CODEX_MATE_PY% watch-install
+)
+if errorlevel 1 goto error
+echo.
+echo Transparent watcher enabled.
+pause
+goto end
+
+:disable_watcher
+echo.
+echo Disabling transparent watcher...
+if exist "%CODEX_MATE_EXE%" (
+    "%CODEX_MATE_EXE%" watch-remove
+    "%CODEX_MATE_EXE%" watch-disable
+) else (
+    %CODEX_MATE_PY% watch-remove
+    %CODEX_MATE_PY% watch-disable
+)
+if errorlevel 1 goto error
+echo.
+echo Transparent watcher disabled. Use the Codex Mate shortcut for direct launch.
+pause
+goto end
+
+:doctor
+echo.
+echo Running Codex Mate doctor...
+if exist "%CODEX_MATE_EXE%" (
+    "%CODEX_MATE_EXE%" doctor --json
+) else (
+    %CODEX_MATE_PY% doctor --json
+)
+if errorlevel 1 goto error
 pause
 goto end
 

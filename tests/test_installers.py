@@ -21,15 +21,19 @@ def test_install_dispatches_to_macos(monkeypatch):
 def test_install_dispatches_to_windows(monkeypatch):
     calls = []
     autostart_calls = []
+    watcher_events = []
     monkeypatch.setattr(installers.sys, "platform", "win32")
     monkeypatch.setattr(installers, "install_windows_shortcuts", lambda options: calls.append(options))
     monkeypatch.setattr(installers.autostart, "install_watcher_autostart", lambda debug_port: autostart_calls.append(debug_port))
+    monkeypatch.setattr(installers.autostart, "uninstall_watcher_autostart", lambda: watcher_events.append("remove-autostart"))
+    monkeypatch.setattr(installers.watcher, "disable_watcher", lambda: watcher_events.append("disable"))
 
     options = InstallOptions()
     installers.install_codex_mate(options)
 
     assert calls == [options]
-    assert autostart_calls == [9229]
+    assert autostart_calls == []
+    assert watcher_events == ["remove-autostart", "disable"]
 
 
 def test_uninstall_dispatches_to_macos(monkeypatch):

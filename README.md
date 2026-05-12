@@ -31,6 +31,7 @@ Codex Mate 是一个给 Codex App 使用的本地增强工具。它通过外部 
 - [Windows 使用](#windows-使用)
 - [macOS 使用](#macos-使用)
 - [历史同步](#历史同步)
+- [项目文件树](#项目文件树)
 - [透明接管](#透明接管)
 - [更新与卸载](#更新与卸载)
 - [数据位置](#数据位置)
@@ -133,6 +134,7 @@ Codex Mate 当前提供这些能力：
 - 删除前确认，并支持撤销
 - 优先走服务端删除；不可用时处理本地 SQLite 会话记录
 - 启动前自动同步本地历史到当前 provider/model
+- 在右侧显示只读项目文件树，支持文本预览、复制路径和插入路径
 - Windows 和 macOS 都支持安装、卸载和透明接管
 - 支持从 GitHub Release 检查并安装更新
 
@@ -182,7 +184,10 @@ setup.bat
 [2] Uninstall Codex Mate
 [3] Update Codex Mate
 [4] Export diagnostic logs
-[5] Exit
+[5] Enable transparent watcher
+[6] Disable transparent watcher
+[7] Doctor
+[8] Exit
 ```
 
 命令行安装：
@@ -197,7 +202,19 @@ python -m codex_mate setup
 Codex Mate.lnk
 ```
 
-同时会注册 Windows 登录自启 watcher。之后即使你从开始菜单、任务栏或原生 Codex 快捷方式打开，watcher 也会检测 Codex 是否带了增强启动所需的 CDP 参数，并在需要时自动接管。
+Windows 默认使用稳定启动入口：从 `Codex Mate.lnk` 启动时，会直接以 `launch --no-history-sync` 拉起 Codex，不需要 watcher 先杀掉原生 Codex 再重开。这样启动链路更短，也更不容易出现闪窗口、接管失败或启动变慢。
+
+如果你希望继续从原生 Codex 图标、开始菜单或任务栏固定项启动，可以在 `setup.bat` 里选择 `Enable transparent watcher`，或者手动运行：
+
+```bash
+python -m codex_mate watch-install
+```
+
+排查 Windows 启动状态：
+
+```bash
+python -m codex_mate doctor --json
+```
 
 ## macOS 使用
 
@@ -258,6 +275,14 @@ Codex Mate 会在启动前读取：
 
 其中 `.codex-global-state.json` 是 Codex Desktop 侧边栏会用到的本地 UI 索引。重新登录账号、退出登录再登录、或 Codex Desktop 更新后，如果本地数据库和会话文件还在，但侧边栏变空，通常就是这类索引和当前桌面状态脱节。Codex Mate 会补齐非归档会话的可见索引和工作区提示，让旧会话重新出现在 Desktop 侧边栏里。
 
+## 项目文件树
+
+Codex Mate 会根据 Codex 本地数据库里的 `threads.cwd` 找到 Codex 已知项目目录，并在右侧显示一个独立的只读文件树。这个面板不依赖 Codex 旧版文件树，也不会修改 Codex App 原始文件。
+
+文件树默认开启，可以在顶部 `Codex Mate` 面板里关闭。点击文件会预览 UTF-8 文本内容；二进制文件不会预览，超过 256KB 的文件也会被拦截，避免大文件卡住界面。预览区提供“复制路径”和“插入路径”，插入时会把相对路径写成 `@path/to/file`。
+
+出于安全考虑，文件树只允许访问 Codex 已知项目目录内部的文件，不提供任意磁盘浏览。`.git`、`node_modules`、`.venv`、`__pycache__`、`dist`、`build` 等目录会默认隐藏。
+
 查看状态：
 
 ```bash
@@ -294,7 +319,9 @@ python -m codex_mate launch --no-history-sync
 
 ## 透明接管
 
-`setup` 会默认安装透明接管能力。它的作用是让你不必记住“必须从 Codex Mate 启动”：当系统里出现未增强的 Codex 进程时，watcher 会重新拉起带 CDP 参数的 Codex，再完成注入。
+透明接管是可选能力。它的作用是让你不必记住“必须从 Codex Mate 启动”：当系统里出现未增强的 Codex 进程时，watcher 会重新拉起带 CDP 参数的 Codex，再完成注入。
+
+Windows 默认不启用 watcher，推荐优先使用 `Codex Mate.lnk` 这条稳定启动入口。macOS 仍会安装 LaunchAgent 来保持原有体验。
 
 单独安装 watcher：
 
@@ -313,6 +340,12 @@ python -m codex_mate watch-enable
 
 ```bash
 python -m codex_mate watch-remove
+```
+
+查看当前启动模式、端口和 Codex App 路径缓存：
+
+```bash
+python -m codex_mate doctor --json
 ```
 
 平台实现：

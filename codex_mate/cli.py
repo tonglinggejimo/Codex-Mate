@@ -15,6 +15,7 @@ from codex_mate.installers import InstallOptions, install_codex_mate, uninstall_
 from codex_mate.launcher import launch_and_inject, shutdown_helper
 from codex_mate import autostart
 from codex_mate import diagnostics
+from codex_mate import doctor
 from codex_mate import history_sync
 from codex_mate import updater
 from codex_mate import watcher
@@ -69,6 +70,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("check-update", help="Check GitHub Releases for a newer Codex Mate version")
     subparsers.add_parser("update", help="Update Codex Mate from the latest GitHub Release")
+
+    doctor_parser = subparsers.add_parser("doctor", help="Show Codex Mate startup and injection diagnostics")
+    doctor_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
     logs_parser = subparsers.add_parser("logs", help="Export a redacted diagnostic log bundle")
     logs_parser.add_argument("--output", type=Path, default=None, help="Output zip path; defaults to ~/.codex-mate/diagnostics")
@@ -301,6 +305,15 @@ def run_logs(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_doctor(args: argparse.Namespace) -> int:
+    payload = doctor.collect_status()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print_payload(payload, False)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command in {"install", "setup"}:
@@ -312,10 +325,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "watch":
         return watcher.watch_loop(debug_port=args.debug_port)
     if args.command == "watch-install":
+        watcher.enable_watcher()
         autostart.install_watcher_autostart(args.debug_port)
         return 0
     if args.command == "watch-remove":
         autostart.uninstall_watcher_autostart()
+        watcher.disable_watcher()
         return 0
     if args.command == "watch-enable":
         watcher.enable_watcher()
@@ -333,6 +348,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_history_sync(args)
     if args.command == "logs":
         return run_logs(args)
+    if args.command == "doctor":
+        return run_doctor(args)
     return run_launch(args)
 
 

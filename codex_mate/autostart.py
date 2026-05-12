@@ -109,6 +109,39 @@ Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe' O
 """.strip()
 
 
+def _run_hidden_powershell(script: str) -> str:
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            timeout=6,
+        )
+        return result.stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def windows_watcher_autostart_installed() -> bool:
+    if sys.platform != "win32":
+        return False
+    script = f"""
+$RunEnabled = $false
+try {{
+    $RunValue = (Get-ItemProperty -Path '{WATCHER_RUN_KEY}' -Name '{WATCHER_RUN_NAME}' -ErrorAction SilentlyContinue).'{WATCHER_RUN_NAME}'
+    $RunEnabled = [bool]$RunValue
+}} catch {{}}
+$Startup = [Environment]::GetFolderPath('Startup')
+$ShortcutEnabled = Test-Path (Join-Path $Startup {_ps_quote(WATCHER_STARTUP_SHORTCUT_NAME)})
+if ($RunEnabled -or $ShortcutEnabled) {{ '1' }} else {{ '0' }}
+""".strip()
+    return _run_hidden_powershell(script).strip() == "1"
+
+
 def install_windows_watcher_autostart(debug_port: int) -> None:
     result = subprocess.run(
         ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", build_windows_watcher_install_script(debug_port)],
