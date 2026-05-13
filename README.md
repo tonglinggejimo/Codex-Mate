@@ -1,183 +1,76 @@
 # Codex Mate
 
 <p align="center">
-  <img src="docs/images/codex-mate.png" alt="Codex Mate 图标" width="256">
+  <img src="docs/images/codex-mate.png" alt="Codex Mate 图标" width="220">
 </p>
 
-## 讨论交流
+Codex Mate 是一个给 Codex App 使用的本地增强工具。它通过外部 launcher 启动 Codex，再把增强菜单注入到界面里；不修改 Codex App 原始安装文件，也不替换 `app.asar`。
+
+项目地址：[https://github.com/serein431/Codex-Mate](https://github.com/serein431/Codex-Mate)
+
+## 交流群
 
 欢迎加入交流群反馈问题、交流使用体验或提出新功能建议：
 
 <img src="docs/images/discussion-group-qr.jpg" alt="Codex Mate 交流群二维码" width="260">
 
-Codex Mate 是一个给 Codex App 使用的本地增强工具。它通过外部 launcher 启动 Codex，再把增强菜单注入到界面里；整个过程不改动 Codex App 的安装文件，也不需要替换 `app.asar`。
-
-它主要解决三类日常问题：
-
-- API Key 模式下插件入口不可用
-- 会话列表缺少直接删除能力
-- 切换账号、provider 或模型后，本地聊天记录在侧边栏里看起来“消失”
-
-项目地址：[https://github.com/serein431/Codex-Mate](https://github.com/serein431/Codex-Mate)
-
-## 目录
-
-- [快速上手](#快速上手)
-- [一键安装脚本](#一键安装脚本)
-- [讨论交流](#讨论交流)
-- [使用效果](#使用效果)
-- [功能概览](#功能概览)
-- [安装方式](#安装方式)
-- [Windows 使用](#windows-使用)
-- [macOS 使用](#macos-使用)
-- [历史同步](#历史同步)
-- [项目文件树](#项目文件树)
-- [透明接管](#透明接管)
-- [更新与卸载](#更新与卸载)
-- [数据位置](#数据位置)
-- [导出诊断日志](#导出诊断日志)
-- [常见问题](#常见问题)
-- [友情链接](#友情链接)
-- [开发](#开发)
-- [致谢](#致谢)
-
-## 快速上手
-
-推荐先用一键安装脚本：下载 ZIP，解压，双击安装脚本即可。详细步骤见下一节。
-
-已经会用命令行和 Git 的用户，可以用源码方式安装：
-
-```bash
-git clone https://github.com/serein431/Codex-Mate.git
-cd Codex-Mate
-python -m pip install -e .
-```
-
-第一次建议直接启动试用：
-
-```bash
-python -m codex_mate launch
-```
-
-如果你刚切换过账号、API、provider 或模型，可以先检查本地历史状态：
-
-```bash
-python -m codex_mate history-status --json
-python -m codex_mate history-sync --json
-```
-
-确认体验正常后，再安装桌面入口和后台接管：
-
-```bash
-python -m codex_mate setup
-```
-
-安装完成后，你仍然可以从原来的 Codex 图标启动。后台 watcher 会在需要时自动把 Codex 切换到 Codex Mate 的增强启动方式。
-
-## 一键安装脚本
-
-适合希望快速安装、更新或卸载的用户：
-
-1. 打开项目地址：[https://github.com/serein431/Codex-Mate](https://github.com/serein431/Codex-Mate)
-2. 进入右侧的 `Releases`
-3. Windows 下载 `CodexMate-windows.zip`，macOS 下载 `CodexMate-macos.zip`
-4. 解压 ZIP
-5. Windows 用户双击 `setup.bat`
-6. macOS 用户双击 `setup.command`
-7. 选择 `[1] Install Codex Mate`
-8. 安装完成后，继续从原来的 Codex 图标启动即可
-
-这两个安装包已经自带 Codex Mate 运行时，不需要提前安装 Python 或 pip。
-
-如果只下载了 `CodexMate.zip`，或在 GitHub 页面点击 `Code -> Download ZIP` 下载源码包，则需要电脑里已经有 Python 3.11+。源码包解压后也可以双击对应的安装脚本，脚本会自动执行本地安装。
-
-如果双击脚本提示找不到 Python，通常说明你下载的是源码包而不是平台安装包。换成 `CodexMate-windows.zip` / `CodexMate-macos.zip` 即可。
-
-需要提前准备：
-
-- 电脑里已经安装 Codex App
-
-Windows 如果双击后出现安全提示，选择继续运行即可。macOS 如果提示无法打开，可以右键 `setup.command`，选择“打开”。
-
-源码包安装方式：
-
-1. 下载 `CodexMate.zip` 或 `Code -> Download ZIP`
-2. 解压 ZIP
-3. 先安装 [Python 3.11+](https://www.python.org/downloads/)
-4. 双击 `setup.bat` 或 `setup.command`
-
-## 使用效果
-
-API Key 模式下，原生 Codex 的插件入口可能会要求登录 ChatGPT：
-
-![API Key 模式下插件入口不可用](docs/images/pain-plugin-disabled.png)
-
-原生会话列表也只有归档入口，没有直接删除按钮：
-
-![原生会话列表缺少删除能力](docs/images/pain-no-delete-button.png)
-
-通过 Codex Mate 启动后，会话列表悬停时会显示“删除”按钮：
-
-![Codex Mate 解锁插件入口并添加删除按钮](docs/images/solution-plugin-and-delete.png)
-
-顶部菜单可以打开 Codex Mate 面板，集中管理插件入口、删除按钮和菜单栏位置等选项：
-
-![Codex Mate 配置界面](docs/images/settings-panel.png)
-
-## 功能概览
-
-Codex Mate 当前提供这些能力：
+## 主要功能
 
 - 解锁 API Key 模式下的插件入口
 - 允许特殊插件继续显示安装入口
-- 在会话列表中加入悬停删除按钮
+- 在会话列表悬停显示“删除”按钮
 - 删除前确认，并支持撤销
-- 优先走服务端删除；不可用时处理本地 SQLite 会话记录
-- 启动前自动同步本地历史到当前 provider/model
-- 在右侧显示只读项目文件树，支持文本预览、复制路径和插入路径
-- Windows 和 macOS 都支持安装、卸载和透明接管
-- 支持从 GitHub Release 检查并安装更新
+- 切换账号、provider 或模型后，帮助恢复本机已有聊天记录的侧边栏显示
+- 右侧只读项目文件树，支持文本预览、复制路径和插入路径
+- 支持 Windows / macOS 安装、更新、卸载和诊断日志导出
 
-## 安装方式
+## 目录
 
-平台安装包只要求：
+- [下载哪个包](#下载哪个包)
+- [Windows 安装](#windows-安装)
+- [Windows 打开](#windows-打开)
+- [Windows 更新与卸载](#windows-更新与卸载)
+- [macOS 安装](#macos-安装)
+- [macOS 打开](#macos-打开)
+- [macOS 更新与卸载](#macos-更新与卸载)
+- [使用效果](#使用效果)
+- [功能说明](#功能说明)
+- [历史同步](#历史同步)
+- [项目文件树](#项目文件树)
+- [透明接管](#透明接管)
+- [诊断日志](#诊断日志)
+- [常见问题](#常见问题)
+- [开发](#开发)
+- [致谢](#致谢)
 
-- Windows 或 macOS
-- 已安装 Codex App
+## 下载哪个包
 
-源码方式额外要求：
+打开最新 Release：
 
-- Python 3.11+
+[https://github.com/serein431/Codex-Mate/releases/latest](https://github.com/serein431/Codex-Mate/releases/latest)
 
-源码安装：
+按系统下载对应文件：
 
-```bash
-python -m pip install -e .
-```
+| 系统 | 推荐下载 | 是否需要 Python |
+| --- | --- | --- |
+| Windows | `CodexMate-windows.zip` | 不需要 |
+| macOS | `CodexMate-macos.zip` | 不需要 |
+| 源码安装 | `CodexMate.zip` 或 `Code -> Download ZIP` | 需要 Python 3.11+ |
 
-不使用 Git 时，直接下载 ZIP 后双击安装脚本：
+如果电脑里没有 Python 和 pip，请下载平台包，也就是 `CodexMate-windows.zip` 或 `CodexMate-macos.zip`。
 
-```text
-Windows: setup.bat
-macOS:   setup.command
-```
+如果双击安装脚本时提示找不到 Python，通常是下载错了源码包。重新下载对应系统的平台包即可。
 
-需要运行测试时安装测试依赖：
+## Windows 安装
 
-```bash
-python -m pip install -e .[test]
-python -m pytest -q
-```
+1. 确认电脑里已经安装 Codex App。
+2. 从 Release 下载 `CodexMate-windows.zip`。
+3. 解压 ZIP 到一个固定位置，例如桌面或 `D:\Tools\CodexMate`。
+4. 双击解压后的 `setup.bat`。
+5. 在菜单里输入 `1`，选择 `Install Codex Mate`。
+6. 看到安装成功提示后关闭窗口。
 
-## Windows 使用
-
-如果你喜欢图形菜单，可以双击项目根目录的：
-
-```text
-setup.bat
-```
-
-菜单会提供安装、卸载和更新入口：
+`setup.bat` 菜单大致如下：
 
 ```text
 [1] Install Codex Mate
@@ -190,49 +83,54 @@ setup.bat
 [8] Exit
 ```
 
-命令行安装：
-
-```bash
-python -m codex_mate setup
-```
-
 安装后会创建桌面快捷方式：
 
 ```text
 Codex Mate.lnk
 ```
 
-Windows 默认使用稳定启动入口：从 `Codex Mate.lnk` 启动时，会直接以 `launch --no-history-sync` 拉起 Codex，不需要 watcher 先杀掉原生 Codex 再重开。这样启动链路更短，也更不容易出现闪窗口、接管失败或启动变慢。
+## Windows 打开
 
-如果你希望继续从原生 Codex 图标、开始菜单或任务栏固定项启动，可以在 `setup.bat` 里选择 `Enable transparent watcher`，或者手动运行：
+推荐从桌面的 `Codex Mate.lnk` 打开。
 
-```bash
-python -m codex_mate watch-install
-```
+这条启动方式最稳定：它会直接用 Codex Mate 拉起 Codex，不需要 watcher 先关闭原生 Codex 再重新打开，因此更少闪窗口，也更不容易出现接管失败。
 
-排查 Windows 启动状态：
+如果你想继续从原生 Codex 图标、开始菜单或任务栏固定项打开，可以启用透明接管：
 
-```bash
-python -m codex_mate doctor --json
-```
+1. 双击 `setup.bat`
+2. 选择 `5`，也就是 `Enable transparent watcher`
 
-## macOS 使用
+启用后，watcher 会在后台发现普通 Codex 进程，并自动切换到 Codex Mate 增强启动方式。
 
-如果你喜欢图形菜单，可以双击项目根目录的：
+## Windows 更新与卸载
 
-```text
-setup.command
-```
+更新：
 
-菜单会提供安装、卸载和更新入口。
+1. 双击 `setup.bat`
+2. 选择 `3`，也就是 `Update Codex Mate`
+3. 更新完成后关闭 Codex，再重新从 `Codex Mate.lnk` 打开
 
-命令行安装：
+卸载：
 
-```bash
-python -m codex_mate setup
-```
+1. 双击 `setup.bat`
+2. 选择 `2`，也就是 `Uninstall Codex Mate`
 
-安装器会自动查找常见的 Codex App 路径，例如：
+也可以在 Windows 的“设置 -> 应用 -> 已安装的应用”里卸载 `Codex Mate`。
+
+如果更新后界面里仍显示旧版本，通常是启动了旧文件夹里的 `CodexMate.exe`，或旧 watcher 还没退出。最稳的做法是关闭 Codex，重新下载最新 `CodexMate-windows.zip`，解压到新目录，再运行 `setup.bat` 选择 `1` 安装。
+
+## macOS 安装
+
+1. 确认电脑里已经安装 Codex App。
+2. 从 Release 下载 `CodexMate-macos.zip`。
+3. 解压 ZIP。
+4. 右键 `setup.command`，选择“打开”。
+5. 在菜单里输入 `1`，选择 `Install Codex Mate`。
+6. 看到安装成功提示后关闭窗口。
+
+如果 macOS 提示无法打开，请不要直接双击，改用右键“打开”。
+
+安装器会自动查找常见 Codex App 路径，例如：
 
 ```text
 /Applications/Codex.app
@@ -246,42 +144,116 @@ python -m codex_mate setup
 /Applications/Codex Mate.app
 ```
 
-并注册用户级 LaunchAgent：
+同时会注册用户级 LaunchAgent：
 
 ```text
 ~/Library/LaunchAgents/dev.codexmate.watcher.plist
 ```
 
-之后可以继续从 Dock、Spotlight 或原来的 Codex 入口打开，后台 watcher 会负责接管未增强的启动。
+## macOS 打开
+
+安装后可以从以下任意入口打开：
+
+- `/Applications/Codex Mate.app`
+- Spotlight 搜索 `Codex Mate`
+- Dock 里的 Codex Mate
+- 原来的 Codex 入口
+
+macOS 默认会安装透明接管 watcher。也就是说，即使你从原来的 Codex 入口打开，Codex Mate 也会尝试自动完成增强启动和注入。
+
+如果只想临时启动一次，也可以在终端运行：
+
+```bash
+python -m codex_mate launch
+```
+
+## macOS 更新与卸载
+
+更新推荐方式：
+
+1. 下载最新 `CodexMate-macos.zip`
+2. 解压
+3. 右键打开 `setup.command`
+4. 选择 `1` 重新安装
+
+卸载：
+
+1. 打开 `setup.command`
+2. 选择 `2`，也就是 `Uninstall Codex Mate`
+
+命令行卸载：
+
+```bash
+python -m codex_mate remove
+```
+
+如果还想删除 Codex Mate 自己产生的日志和备份：
+
+```bash
+python -m codex_mate remove --remove-data
+```
+
+## 使用效果
+
+API Key 模式下，原生 Codex 的插件入口可能会要求登录 ChatGPT：
+
+![API Key 模式下插件入口不可用](docs/images/pain-plugin-disabled.png)
+
+原生会话列表只有归档入口，没有直接删除按钮：
+
+![原生会话列表缺少删除能力](docs/images/pain-no-delete-button.png)
+
+通过 Codex Mate 启动后，会话列表悬停时会显示“删除”按钮：
+
+![Codex Mate 解锁插件入口并添加删除按钮](docs/images/solution-plugin-and-delete.png)
+
+顶部菜单可以打开 Codex Mate 面板，集中管理功能开关、检查更新和问题反馈：
+
+![Codex Mate 配置界面](docs/images/settings-panel.png)
+
+## 功能说明
+
+### 插件入口解锁
+
+Codex Mate 会让 API Key 模式下的插件入口显示并可用，适合使用自定义 provider、API Key 或切换工具的用户。
+
+### 会话删除
+
+会话列表悬停时会出现“删除”按钮。点击后会先弹出确认框，删除成功后会显示提示，并尽量支持撤销。
+
+删除优先走 Codex 可用的服务端接口；如果不可用，再处理本机 SQLite 和本地索引。
+
+### 检查更新
+
+打开 Codex Mate 面板后，可以点击“检查更新”。如果当前安装方式支持自动更新，会出现“一键更新”按钮。
+
+也可以用命令行检查：
+
+```bash
+python -m codex_mate check-update
+python -m codex_mate update
+```
 
 ## 历史同步
 
-Codex 的本地历史会带有 provider/model 相关信息。切换账号、API、provider 或模型后，旧聊天记录并不一定真的丢了，有时只是和当前配置不匹配，所以侧边栏不再展示。
+Codex 的本地历史会带有 provider/model 相关信息。切换账号、API、provider 或模型后，旧聊天记录有时并没有丢，只是和当前配置不匹配，所以侧边栏不再展示。
 
-Codex Mate 会在启动前读取：
+Codex Mate 会读取：
 
 ```text
 ~/.codex/config.toml
 ```
 
-然后把这些本地数据同步到当前配置：
+然后同步这些本地数据：
 
-- `~/.codex/state_5.sqlite`
-- `~/.codex/sessions/**/rollout-*.jsonl`
-- `~/.codex/session_index.jsonl`
-- `~/.codex/.codex-global-state.json`
+```text
+~/.codex/state_5.sqlite
+~/.codex/sessions/**/rollout-*.jsonl
+~/.codex/session_index.jsonl
+~/.codex/.codex-global-state.json
+```
 
-如果 `config.toml` 里没有显式写 `model_provider`，Codex Mate 会按官方默认 provider `openai` 处理。部分切换工具在切回官方模型时只写 `model`，这种情况下也可以直接运行 `history-sync` 恢复历史显示。
-
-其中 `.codex-global-state.json` 是 Codex Desktop 侧边栏会用到的本地 UI 索引。重新登录账号、退出登录再登录、或 Codex Desktop 更新后，如果本地数据库和会话文件还在，但侧边栏变空，通常就是这类索引和当前桌面状态脱节。Codex Mate 会补齐非归档会话的可见索引和工作区提示，让旧会话重新出现在 Desktop 侧边栏里。
-
-## 项目文件树
-
-Codex Mate 会根据 Codex 本地数据库里的 `threads.cwd` 找到 Codex 已知项目目录，并在右侧显示一个独立的只读文件树。这个面板不依赖 Codex 旧版文件树，也不会修改 Codex App 原始文件。
-
-文件树默认开启，可以在顶部 `Codex Mate` 面板里关闭。点击文件会预览 UTF-8 文本内容；二进制文件不会预览，超过 256KB 的文件也会被拦截，避免大文件卡住界面。预览区提供“复制路径”和“插入路径”，插入时会把相对路径写成 `@path/to/file`。
-
-出于安全考虑，文件树只允许访问 Codex 已知项目目录内部的文件，不提供任意磁盘浏览。`.git`、`node_modules`、`.venv`、`__pycache__`、`dist`、`build` 等目录会默认隐藏。
+如果 `config.toml` 里没有显式写 `model_provider`，Codex Mate 会按官方默认 provider `openai` 处理。部分切换工具在切回官方模型时只写 `model`，这种情况下也可以直接运行历史同步。
 
 查看状态：
 
@@ -295,186 +267,135 @@ python -m codex_mate history-status --json
 python -m codex_mate history-sync --json
 ```
 
+如果重新登录 ChatGPT 账号后侧边栏历史变空，可以这样处理：
+
+1. 退出 Codex。
+2. 运行 `python -m codex_mate history-sync --json`。
+3. 重新打开 Codex。
+
 同步前会自动备份到：
 
 ```text
 ~/.codex/codex_mate_history_backups
 ```
 
-这项功能只处理本机已经存在的 Codex 历史文件，不负责把云端账号或另一台电脑上的聊天记录迁移过来。
+这项功能只处理本机已经存在的 Codex 历史文件，不会从云端账号或另一台电脑下载聊天记录。
 
-如果你重新登录 ChatGPT 账号后发现 Codex Desktop 侧边栏历史变空，可以先退出 Codex，再运行：
-
-```bash
-python -m codex_mate history-sync --json
-```
-
-然后重新打开 Codex。同步前会备份 `state_5.sqlite`、`session_index.jsonl`、`.codex-global-state.json` 和会话 meta 摘要。
-
-如果你只想启动 Codex，不想同步历史，可以这样运行：
+如果只想启动 Codex，不想同步历史：
 
 ```bash
 python -m codex_mate launch --no-history-sync
 ```
 
+## 项目文件树
+
+Codex Mate 会根据 Codex 本地数据库里的 `threads.cwd` 找到 Codex 已知项目目录，并在右侧显示一个独立的只读文件树。
+
+文件树默认开启，可以在 Codex Mate 面板里关闭。
+
+支持：
+
+- 展开目录
+- 预览 UTF-8 文本文件
+- 复制相对路径
+- 把路径插入输入框，格式为 `@path/to/file`
+
+限制：
+
+- 只允许访问 Codex 已知项目目录内部的文件
+- 不提供任意磁盘浏览
+- 不预览二进制文件
+- 超过 256KB 的文件不会直接预览
+- 默认隐藏 `.git`、`node_modules`、`.venv`、`__pycache__`、`dist`、`build` 等目录
+
 ## 透明接管
 
-透明接管是可选能力。它的作用是让你不必记住“必须从 Codex Mate 启动”：当系统里出现未增强的 Codex 进程时，watcher 会重新拉起带 CDP 参数的 Codex，再完成注入。
+透明接管是可选能力。它的作用是让你不必记住“必须从 Codex Mate 启动”。
 
-Windows 默认不启用 watcher，推荐优先使用 `Codex Mate.lnk` 这条稳定启动入口。macOS 仍会安装 LaunchAgent 来保持原有体验。
+当系统里出现未增强的 Codex 进程时，watcher 会重新拉起带调试端口的 Codex，再完成注入。
 
-单独安装 watcher：
+Windows 默认推荐使用 `Codex Mate.lnk`，不强依赖 watcher。macOS 默认会安装 LaunchAgent 来保持原有体验。
+
+命令行：
 
 ```bash
 python -m codex_mate watch-install
-```
-
-临时关闭或重新开启接管：
-
-```bash
 python -m codex_mate watch-disable
 python -m codex_mate watch-enable
-```
-
-移除 watcher：
-
-```bash
 python -m codex_mate watch-remove
 ```
 
-查看当前启动模式、端口和 Codex App 路径缓存：
+查看当前启动状态：
 
 ```bash
 python -m codex_mate doctor --json
 ```
 
-平台实现：
+需要注意：透明接管可能会让原生 Codex 先闪一下，然后被关闭并重新打开。这是外部 launcher 方案的正常代价。
 
-- Windows 登录自启：`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`，并在 Startup 文件夹创建 `CodexMateWatcher.lnk`
-- macOS LaunchAgent：`~/Library/LaunchAgents/dev.codexmate.watcher.plist`
+## 诊断日志
 
-需要注意的是，透明接管可能会让原生 Codex 先闪一下，然后被关闭并重新打开。这是外部 launcher 方案的正常代价。
+如果遇到闪退、删除按钮无反应、注入失败、历史记录异常等问题，可以导出诊断包发给维护者。
 
-## 更新与卸载
+Windows：
 
-也可以在 Codex 顶部打开 `Codex Mate` 面板，点击“检查更新”；发现可自动安装的 Release 包后，面板会显示“一键更新”按钮。
+1. 双击 `setup.bat`
+2. 选择 `4`，也就是 `Export diagnostic logs`
 
-检查新版本：
+macOS：
 
-```bash
-python -m codex_mate check-update
-```
+1. 打开 `setup.command`
+2. 选择 `4`，也就是 `Export diagnostic logs`
 
-从 GitHub Release 更新：
-
-```bash
-python -m codex_mate update
-```
-
-更新检查会请求：
-
-```text
-https://api.github.com/repos/serein431/Codex-Mate/releases/latest
-```
-
-发现新版后会优先下载 Release 里的 `.whl` 或源码包，并重新执行安装流程。Windows 平台包也可以打开 `setup.bat` 选择 `[3] Update Codex Mate`，脚本会下载最新 `CodexMate-windows.zip`、替换本地 `CodexMate.exe` 并重新安装 watcher。macOS 平台包仍建议下载最新 `CodexMate-macos.zip` 后重新运行 `setup.command`。
-
-如果 Windows 用户升级后面板里仍显示旧版本，通常说明正在启动旧文件夹里的 `CodexMate.exe`，或旧 watcher 还没退出。最稳的处理方式是：关闭 Codex，重新下载最新 `CodexMate-windows.zip`，解压到一个干净目录，再双击里面的 `setup.bat` 选择 `[1] Install Codex Mate`。
-
-卸载：
-
-```bash
-python -m codex_mate remove
-```
-
-如果还想删除 Codex Mate 自己产生的日志和备份：
-
-```bash
-python -m codex_mate remove --remove-data
-```
-
-Windows 也可以从“设置 -> 应用 -> 已安装的应用”里卸载 `Codex Mate`。
-
-## 数据位置
-
-Codex Mate 会读取 Codex 本地数据库：
-
-```text
-~/.codex/state_5.sqlite
-```
-
-会话删除备份：
-
-```text
-~/.codex-mate/backups
-```
-
-历史同步备份：
-
-```text
-~/.codex/codex_mate_history_backups
-```
-
-启动日志：
-
-```text
-~/.codex-mate/launcher.log
-```
-
-watcher 日志：
-
-```text
-~/.codex-mate/watcher.log
-%USERPROFILE%\.codex-mate\watcher.log
-```
-
-## 导出诊断日志
-
-如果遇到闪退、删除按钮无反应、注入失败、历史记录异常等问题，可以导出一个诊断包发给维护者：
+命令行：
 
 ```bash
 python -m codex_mate logs
 ```
 
-Windows / macOS 平台安装包也可以直接打开 `setup.bat` 或 `setup.command`，选择 `Export diagnostic logs`。
-
-命令会生成类似下面的文件：
+诊断包位置类似：
 
 ```text
 ~/.codex-mate/diagnostics/CodexMate-diagnostics-20260512-003000.zip
 %USERPROFILE%\.codex-mate\diagnostics\CodexMate-diagnostics-20260512-003000.zip
 ```
 
-诊断包会包含 Codex Mate 的启动日志、watcher 日志、进程快照和必要配置摘要，并会自动脱敏常见的 API Key、Bearer Token、`sk-...` 等敏感字段。
+诊断包会包含 Codex Mate 的启动日志、watcher 日志、进程快照和必要配置摘要，并会自动脱敏常见 API Key、Bearer Token、`sk-...` 等敏感字段。
 
 ## 常见问题
 
 ### Codex Mate 菜单没有出现
 
-先确认 Codex 是通过 Codex Mate 启动的，或者 watcher 已经启用。也可以检查 Codex 进程是否带有：
+优先确认你是从 Codex Mate 入口启动的。
+
+Windows 推荐从桌面 `Codex Mate.lnk` 打开。macOS 可以从 `/Applications/Codex Mate.app` 打开。
+
+也可以运行：
+
+```bash
+python -m codex_mate doctor --json
+```
+
+重点看 Codex 进程是否带有：
 
 ```text
 --remote-debugging-port=9229
 ```
 
-### 双击后没有反应
+### 双击安装脚本后提示找不到 Python
 
-优先查看启动日志：
+你大概率下载的是源码包。
 
-```text
-~/.codex-mate/launcher.log
-%USERPROFILE%\.codex-mate\launcher.log
-```
+没有 Python 的用户请下载：
 
-常见原因包括 Codex App 路径变化、9229 端口被占用、Python 环境不可用。
+- Windows：`CodexMate-windows.zip`
+- macOS：`CodexMate-macos.zip`
 
 ### 原生 Codex 打开后又自动关闭
 
 这是透明接管在工作。watcher 发现当前 Codex 没有以增强参数启动，就会关闭它并重新通过 Codex Mate 启动。
 
-### 面板里显示的版本不是最新
-
-先确认你打开的是最新 Release 解压出来的 `setup.bat`。如果仍显示旧版本，关闭 Codex 后重新下载最新平台安装包，解压到新目录，再运行 `[1] Install Codex Mate`。旧版本的 Windows 更新脚本可能只更新了后台包，没有替换正在使用的可执行文件。
+Windows 如果不想要这种行为，可以打开 `setup.bat`，选择 `6` 关闭 watcher，然后固定从 `Codex Mate.lnk` 打开。
 
 ### 切换账号后历史还是没显示
 
@@ -486,22 +407,50 @@ python -m codex_mate history-status --json
 
 如果状态显示本地没有可同步的会话文件，说明当前机器上可能没有对应历史。历史同步只处理本机已有文件，不会从另一个账号或设备下载聊天记录。
 
+### Windows 更新后还是旧版本
+
+关闭 Codex，重新下载最新 `CodexMate-windows.zip`，解压到一个新目录，再运行 `setup.bat` 选择 `1` 安装。
+
+如果之前启用了 watcher，也可以先在 `setup.bat` 里选择 `6` 关闭 watcher，再重新安装。
+
 ### Windows 卸载失败
 
-先重新安装一次当前版本，再执行卸载：
+先重新安装一次当前版本，再卸载：
 
 ```bash
 python -m codex_mate setup
 python -m codex_mate remove
 ```
 
-## 友情链接
+也可以用 `setup.bat` 里的 `Uninstall Codex Mate`。
 
-- [LINUX DO](https://linux.do)
+## 源码安装
+
+源码安装适合开发者，或者已经有 Python 3.11+ 的用户。
+
+```bash
+git clone https://github.com/serein431/Codex-Mate.git
+cd Codex-Mate
+python -m pip install -e .
+python -m codex_mate launch
+```
+
+不使用 Git 时，也可以下载源码 ZIP，解压后运行：
+
+```bash
+python -m pip install -e .
+python -m codex_mate setup
+```
 
 ## 开发
 
-常用测试命令：
+安装测试依赖：
+
+```bash
+python -m pip install -e .[test]
+```
+
+运行测试：
 
 ```bash
 python -m pytest -q
@@ -517,6 +466,7 @@ codex_mate/
   helper_server.py       本地 helper 服务
   storage_adapter.py     本地 SQLite 删除与撤销
   history_sync.py        本地历史 provider/model 同步
+  file_tree.py           项目文件树后端
   autostart.py           Windows/macOS watcher 自启注册
   watcher.py             透明接管进程
   inject/renderer-inject.js
@@ -525,6 +475,10 @@ tests/
 ```
 
 Codex Mate 是外部增强工具。Codex App 更新后，如果界面结构变化，可能需要同步调整注入脚本。
+
+## 友情链接
+
+- [LINUX DO](https://linux.do)
 
 ## 致谢
 
