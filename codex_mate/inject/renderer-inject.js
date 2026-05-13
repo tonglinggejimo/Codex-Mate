@@ -9,6 +9,11 @@
   const codexMateVersion = window.__CODEX_MATE_VERSION__ || "dev";
   const codexMateSettingsKey = "codexMateSettings";
 
+  function closestElement(target, selector) {
+    const element = target?.nodeType === 1 ? target : target?.parentElement;
+    return element?.closest?.(selector) || null;
+  }
+
   function installStyle() {
     const existingStyle = document.getElementById(styleId);
     if (existingStyle?.dataset.codexDeleteStyleVersion === codexDeleteStyleVersion) return;
@@ -674,7 +679,7 @@
     if (panel.dataset.codexFileTreeEvents === "true") return;
     panel.dataset.codexFileTreeEvents = "true";
     panel.addEventListener("change", async (event) => {
-      const select = event.target.closest("[data-codex-file-tree-root-select]");
+      const select = closestElement(event.target, "[data-codex-file-tree-root-select]");
       if (!select) return;
       codexFileTreeState.selectedRootId = select.value;
       codexFileTreeState.selectedPath = "";
@@ -686,13 +691,13 @@
       await loadProjectFileTreeDirectory("");
     }, true);
     panel.addEventListener("click", async (event) => {
-      const collapse = event.target.closest("[data-codex-file-tree-collapse]");
+      const collapse = closestElement(event.target, "[data-codex-file-tree-collapse]");
       if (collapse) {
         panel.remove();
         installProjectFileTreeLauncher();
         return;
       }
-      const directory = event.target.closest("[data-codex-file-tree-toggle]");
+      const directory = closestElement(event.target, "[data-codex-file-tree-toggle]");
       if (directory) {
         const path = directory.getAttribute("data-codex-file-tree-toggle") || "";
         if (codexFileTreeState.expandedPaths.has(path)) {
@@ -708,16 +713,16 @@
         }
         return;
       }
-      const file = event.target.closest("[data-codex-file-tree-file]");
+      const file = closestElement(event.target, "[data-codex-file-tree-file]");
       if (file) {
         await readProjectFileTreeFile(file.getAttribute("data-codex-file-tree-file") || "");
         return;
       }
-      if (event.target.closest("[data-codex-file-tree-copy-path]")) {
+      if (closestElement(event.target, "[data-codex-file-tree-copy-path]")) {
         await copySelectedFileTreePath();
         return;
       }
-      if (event.target.closest("[data-codex-file-tree-insert-path]")) {
+      if (closestElement(event.target, "[data-codex-file-tree-insert-path]")) {
         await insertSelectedFileTreePath();
       }
     }, true);
@@ -815,27 +820,27 @@
       </div>
     `;
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay || event.target.closest(".codex-mate-modal-close")) {
+      if (event.target === overlay || closestElement(event.target, ".codex-mate-modal-close")) {
         overlay.remove();
         return;
       }
-      const issueButton = event.target.closest("[data-codex-mate-issue]");
+      const issueButton = closestElement(event.target, "[data-codex-mate-issue]");
       if (issueButton) {
         const issueUrl = "https://github.com/serein431/Codex-Mate/issues";
         window.open(issueUrl, "_blank");
         return;
       }
-      const checkUpdateButton = event.target.closest("[data-codex-mate-check-update]");
+      const checkUpdateButton = closestElement(event.target, "[data-codex-mate-check-update]");
       if (checkUpdateButton) {
         checkCodexMateUpdate(checkUpdateButton);
         return;
       }
-      const runUpdateButton = event.target.closest("[data-codex-mate-run-update]");
+      const runUpdateButton = closestElement(event.target, "[data-codex-mate-run-update]");
       if (runUpdateButton) {
         runCodexMateUpdate(runUpdateButton);
         return;
       }
-      const toggle = event.target.closest("[data-codex-mate-setting]");
+      const toggle = closestElement(event.target, "[data-codex-mate-setting]");
       if (!toggle) return;
       const key = toggle.getAttribute("data-codex-mate-setting");
       setCodexMateSetting(key, !codexMateSettings()[key]);
@@ -1127,11 +1132,11 @@
         resolve(value);
       };
       overlay.addEventListener("click", (event) => {
-        if (event.target === overlay || event.target.closest("[data-codex-delete-cancel]")) {
+        if (event.target === overlay || closestElement(event.target, "[data-codex-delete-cancel]")) {
           finish(false, event);
           return;
         }
-        if (event.target.closest("[data-codex-delete-confirm]")) {
+        if (closestElement(event.target, "[data-codex-delete-confirm]")) {
           finish(true, event);
         }
       }, true);

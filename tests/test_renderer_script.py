@@ -296,6 +296,18 @@ def test_renderer_script_includes_project_file_tree_panel():
     assert "@${codexFileTreeState.selectedPath}" in text
 
 
+def test_renderer_script_delegated_clicks_tolerate_text_targets():
+    text = Path("codex_mate/inject/renderer-inject.js").read_text(encoding="utf-8")
+
+    assert "function closestElement(target, selector)" in text
+    assert 'closestElement(event.target, ".codex-mate-modal-close")' in text
+    assert 'closestElement(event.target, "[data-codex-mate-setting]")' in text
+    assert 'closestElement(event.target, "[data-codex-delete-confirm]")' in text
+    assert 'closestElement(event.target, "[data-codex-file-tree-copy-path]")' in text
+    assert 'event.target.closest(".codex-mate-modal-close")' not in text
+    assert 'event.target.closest("[data-codex-delete-confirm]")' not in text
+
+
 def test_renderer_script_does_not_include_fast_mode_patch():
     text = Path("codex_mate/inject/renderer-inject.js").read_text(encoding="utf-8")
     assert "codexFastModeUnlockVersion" not in text
